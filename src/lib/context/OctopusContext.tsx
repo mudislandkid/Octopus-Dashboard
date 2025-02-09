@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 import { OctopusApi, OctopusApiError } from '../services/octopus-api'
-import { Consumption, Rate, AccountInfo } from '../types/api'
+import { Consumption, Rate, AccountInfo, StandingCharge } from '../types/api'
 import { DateRange } from 'react-day-picker'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
@@ -13,6 +13,9 @@ interface OctopusContextType {
   electricityExportConsumption: Consumption[] | null
   gasConsumption: Consumption[] | null
   electricityRates: Rate[] | null
+  gasRates: Rate[] | null
+  electricityStandingCharge: StandingCharge | null
+  gasStandingCharge: StandingCharge | null
   dateRange: DateRange | undefined
   connect: (apiKey: string, accountNumber: string) => Promise<void>
   setDateRange: (range: DateRange | undefined) => void
@@ -30,6 +33,9 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
   const [electricityExportConsumption, setElectricityExportConsumption] = useState<Consumption[] | null>(null)
   const [gasConsumption, setGasConsumption] = useState<Consumption[] | null>(null)
   const [electricityRates, setElectricityRates] = useState<Rate[] | null>(null)
+  const [gasRates, setGasRates] = useState<Rate[] | null>(null)
+  const [electricityStandingCharge, setElectricityStandingCharge] = useState<StandingCharge | null>(null)
+  const [gasStandingCharge, setGasStandingCharge] = useState<StandingCharge | null>(null)
   
   // Initialize with last 30 days of data
   const now = new Date()
@@ -97,6 +103,17 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
         to.toISOString()
       )
       setGasConsumption(consumption.results)
+
+      // Get gas rates and standing charges
+      console.log('Fetching gas rates and standing charges...')
+      const gasResponse = await api.getGasStandingCharge()
+      console.log('Gas rates and standing charges response:', gasResponse)
+      
+      // Set gas rates
+      setGasRates(gasResponse.rates)
+
+      // Set gas standing charge
+      setGasStandingCharge(gasResponse.standingCharge)
     } catch (error) {
       console.log('No gas meter found or error fetching data:', error)
     }
@@ -107,15 +124,22 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
       const rates = await api.getElectricityTariff()
       console.log('Electricity rates response:', rates)
       
-      // Filter rates to get only current and future rates
-      const now = new Date()
-      const currentRates = rates.results[0]?.unit_rate?.filter(rate => 
-        new Date(rate.valid_from) <= now && new Date(rate.valid_to) > now
-      ) || null
-      console.log('Current electricity rates:', currentRates)
-      setElectricityRates(currentRates)
+      // Set the rates directly
+      setElectricityRates(rates.results)
+      console.log('Current electricity rates:', rates.results)
+      
+      // Get standing charges
+      console.log('Fetching electricity standing charges...')
+      const standingCharges = await api.getElectricityStandingCharge()
+      console.log('Standing charges response:', standingCharges)
+      
+      // Get the current standing charge (most recent one)
+      const currentStandingCharge = standingCharges.results
+        .sort((a, b) => new Date(b.valid_from).getTime() - new Date(a.valid_from).getTime())[0]
+      setElectricityStandingCharge(currentStandingCharge)
+      
     } catch (error) {
-      console.log('Error fetching electricity rates:', error)
+      console.log('Error fetching electricity rates or standing charges:', error)
     }
   }
 
@@ -191,6 +215,9 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
         electricityExportConsumption,
         gasConsumption,
         electricityRates,
+        gasRates,
+        electricityStandingCharge,
+        gasStandingCharge,
         dateRange,
         connect,
         setDateRange,

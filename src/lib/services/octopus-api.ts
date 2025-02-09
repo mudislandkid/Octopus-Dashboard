@@ -1,4 +1,4 @@
-import { ConsumptionResponse, TariffResponse, AccountInfo } from '../types/api'
+import { ConsumptionResponse, TariffResponse, AccountInfo, StandingChargeResponse, Property } from '../types/api'
 import { config } from '../config'
 
 export class OctopusApiError extends Error {
@@ -29,18 +29,26 @@ export class OctopusApi {
     private accountNumber: string
   ) {}
 
-  private async request<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+  private async request<T>(path: string, options?: { params?: Record<string, string> }): Promise<T> {
+    // First create the base URL
+    const url = new URL(`${this.baseUrl}${path}`)
+    
+    // Add query parameters if they exist
+    if (options?.params) {
+      Object.entries(options.params).forEach(([key, value]) => {
+        // Don't encode the value here - URLSearchParams will handle the encoding
+        url.searchParams.append(key, value)
+      })
+    }
+
+    const response = await fetch(url.toString(), {
       headers: {
         Authorization: `Basic ${btoa(this.apiKey + ':')}`
       }
     })
 
     if (!response.ok) {
-      throw new OctopusApiError(
-        response.status,
-        `API request failed: ${response.statusText}`
-      )
+      throw new Error(`API request failed: ${response.statusText}`)
     }
 
     return response.json()
@@ -115,12 +123,6 @@ export class OctopusApi {
   }
 
   async getElectricityTariff() {
-    // Use the first import meter point for tariff info
-    const meterPoint = this.electricityMeterPoints.find(mp => !mp.is_export)
-    if (!meterPoint) {
-      throw new Error('No import electricity meter found')
-    }
-
     // Get account info to find the current tariff
     const accountData = await this.getAccountInfo()
     const electricityMeterPoint = accountData.properties[0]?.electricity_meter_points?.find(
@@ -147,35 +149,179 @@ export class OctopusApi {
       throw new Error('No current electricity agreement found')
     }
 
-    // Extract product code from tariff code (e.g., "E-1R-SUPER-GREEN-24M-21-07-30-A" -> "SUPER-GREEN-24M-21-07-30")
-    const productCode = currentAgreement.tariff_code.split('E-1R-')[1]?.split('-A')[0]
-    if (!productCode) {
+    // Extract product code from tariff code (e.g., "E-1R-AGILE-24-10-01-D" -> "AGILE-24-10-01")
+    const matches = currentAgreement.tariff_code.match(/^E-1R-(.+)-([A-Z])$/)
+    if (!matches) {
       throw new Error('Invalid tariff code format')
     }
+    const [_, productCode, regionCode] = matches
 
-    // Get current rates
-    const params = new URLSearchParams({
-      period_from: now.toISOString(),
-      period_to: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() // Next 24 hours
-    })
+    // Get the date range from the context
+    const { from, to } = this.getDateRange()
+    const periodFrom = new Date(from)
+    const periodTo = new Date(to)
 
-    return this.request<any>(
-      `/products/${productCode}/electricity-tariffs/${currentAgreement.tariff_code}/standard-unit-rates/?${params}`
+    // Format dates to match exactly: 2025-02-02T00:00:00.000Z
+    const formatDate = (date: Date) => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}T00:00:00.000Z`
+    }
+
+    return this.request<TariffResponse>(
+      `/products/${productCode}/electricity-tariffs/${currentAgreement.tariff_code}/standard-unit-rates/`,
+      {
+        params: {
+          page_size: '1500',
+          period_from: formatDate(periodFrom),
+          period_to: formatDate(periodTo)
+        }
+      }
     )
   }
 
-  private getDateRange() {
+  async getElectricityStandingCharge() {
+    // Get account info to find the current tariff
+    const accountData = await this.getAccountInfo()
+    const electricityMeterPoint = accountData.properties[0]?.electricity_meter_points?.find(
+      (point: { is_export: boolean }) => !point.is_export
+    )
+
+    if (!electricityMeterPoint?.agreements?.length) {
+      throw new Error('No electricity agreements found')
+    }
+
+    // Get the current agreement
     const now = new Date()
-    const today = new Date(now)
-    today.setHours(0, 0, 0, 0)
+    const currentAgreement = electricityMeterPoint.agreements.find((agreement: { 
+      valid_from: string
+      valid_to: string | null
+      tariff_code: string 
+    }) => {
+      const validFrom = new Date(agreement.valid_from)
+      const validTo = agreement.valid_to ? new Date(agreement.valid_to) : new Date('9999-12-31')
+      return now >= validFrom && now <= validTo
+    })
+
+    if (!currentAgreement?.tariff_code) {
+      throw new Error('No current electricity agreement found')
+    }
+
+    // Extract product code from tariff code (e.g., "E-1R-AGILE-24-10-01-D" -> "AGILE-24-10-01")
+    const matches = currentAgreement.tariff_code.match(/^E-1R-(.+)-([A-Z])$/)
+    if (!matches) {
+      throw new Error('Invalid tariff code format')
+    }
+    const [_, productCode, regionCode] = matches
+
+    // Get the date range from the context
+    const { from, to } = this.getDateRange()
+    const periodFrom = new Date(from)
+    const periodTo = new Date(to)
+
+    // Format dates to match exactly: 2025-02-02T00:00:00.000Z
+    const formatDate = (date: Date) => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}T00:00:00.000Z`
+    }
+
+    return this.request<StandingChargeResponse>(
+      `/products/${productCode}/electricity-tariffs/${currentAgreement.tariff_code}/standing-charges/`,
+      {
+        params: {
+          period_from: formatDate(periodFrom),
+          period_to: formatDate(periodTo)
+        }
+      }
+    )
+  }
+
+  async getGasStandingCharge() {
+    // Get account info to find the current tariff
+    const accountData = await this.getAccountInfo()
+    
+    // Find the first property with a gas meter point
+    const property = accountData.properties.find((p: Property) => p.gas_meter_points?.length > 0)
+    if (!property) {
+      throw new Error('No property with gas meter found')
+    }
+
+    // Get the gas meter point
+    const gasMeterPoint = property.gas_meter_points[0]
+    if (!gasMeterPoint) {
+      throw new Error('No gas meter point found')
+    }
+
+    // Get the current agreement
+    const currentAgreement = gasMeterPoint.agreements?.[0]
+    if (!currentAgreement) {
+      throw new Error('No current gas agreement found')
+    }
+
+    // Extract product code from tariff code (e.g., "G-1R-FIX-12M-20-02-12-D" -> "FIX-12M-20-02-12")
+    const matches = currentAgreement.tariff_code.match(/^G-1R-(.+)-[A-Z]$/)
+    if (!matches) {
+      throw new Error('Invalid gas tariff code format')
+    }
+    const productCode = matches[1]
+    const regionCode = currentAgreement.tariff_code.slice(-1)
+
+    console.log('Getting gas tariff details:', {
+      productCode,
+      regionCode,
+      fullTariffCode: currentAgreement.tariff_code
+    })
+
+    // Get the product details which includes both standing charges and unit rates
+    const productResponse = await this.request<any>(
+      `/products/${productCode}/`
+    )
+
+    console.log('Gas product response:', productResponse)
+
+    // Find the gas tariff details for the current agreement
+    const tariffDetails = productResponse.single_register_gas_tariffs?.[`_${regionCode}`]?.direct_debit_monthly
+    if (!tariffDetails) {
+      throw new Error('Could not find gas tariff details')
+    }
+
+    // Return both standing charge and unit rate, with the rate formatted as an array to match the Rate interface
+    return {
+      standingCharge: {
+        value_exc_vat: tariffDetails.standing_charge_exc_vat,
+        value_inc_vat: tariffDetails.standing_charge_inc_vat,
+        valid_from: new Date().toISOString(),
+        valid_to: null
+      },
+      rates: [{
+        value_exc_vat: tariffDetails.standard_unit_rate_exc_vat,
+        value_inc_vat: tariffDetails.standard_unit_rate_inc_vat,
+        valid_from: new Date().toISOString(),
+        valid_to: null,
+        payment_method: 'direct_debit_monthly'
+      }]
+    }
+  }
+
+  public getDateRange() {
+    const now = new Date()
+    const from = new Date(now)
+    from.setDate(now.getDate() - 30) // Default to last 30 days
+    
+    // Format to UTC midnight
+    from.setUTCHours(0, 0, 0, 0)
+    now.setUTCHours(23, 59, 59, 999)
 
     // Adjust for timezone offset to ensure we get today's data
-    const offset = today.getTimezoneOffset()
-    today.setMinutes(today.getMinutes() - offset)
+    const offset = now.getTimezoneOffset()
+    from.setMinutes(from.getMinutes() - offset)
     now.setMinutes(now.getMinutes() - offset)
 
     return {
-      from: today.toISOString(),
+      from: from.toISOString(),
       to: now.toISOString()
     }
   }

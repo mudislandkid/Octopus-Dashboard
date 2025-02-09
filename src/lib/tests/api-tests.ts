@@ -78,15 +78,13 @@ async function runTests() {
     console.log('\n=== Test 4: Electricity Tariff ===')
     const tariffResponse = await api.getElectricityTariff()
     console.log('Response Structure:', {
-      'results.length': tariffResponse.results.length,
-      'unit_rate.length': tariffResponse.results[0]?.unit_rate?.length,
-      'standing_charge.length': tariffResponse.results[0]?.standing_charge?.length
+      count: tariffResponse.count,
+      next: tariffResponse.next,
+      previous: tariffResponse.previous,
+      'results.length': tariffResponse.results.length
     })
-    if (tariffResponse.results[0]?.unit_rate?.length > 0) {
-      console.log('Sample Rate Entry:', tariffResponse.results[0].unit_rate[0])
-    }
-    if (tariffResponse.results[0]?.standing_charge?.length > 0) {
-      console.log('Sample Standing Charge:', tariffResponse.results[0].standing_charge[0])
+    if (tariffResponse.results.length > 0) {
+      console.log('Sample Rate Entry:', tariffResponse.results[0])
     }
 
     // Test 5: Get Available Tariff Products

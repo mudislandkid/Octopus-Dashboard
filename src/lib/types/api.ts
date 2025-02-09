@@ -15,14 +15,29 @@ export interface Rate {
   value_exc_vat: number
   value_inc_vat: number
   valid_from: string
-  valid_to: string
+  valid_to: string | null
+  payment_method?: string | null
 }
 
 export interface TariffResponse {
-  results: {
-    unit_rate: Rate[]
-    standing_charge: Rate[]
-  }[]
+  count: number
+  next: string | null
+  previous: string | null
+  results: Rate[]
+}
+
+export interface StandingCharge {
+  value_exc_vat: number
+  value_inc_vat: number
+  valid_from: string
+  valid_to: string | null
+}
+
+export interface StandingChargeResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: StandingCharge[]
 }
 
 export interface ElectricityMeterPoint {

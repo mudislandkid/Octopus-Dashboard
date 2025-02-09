@@ -2,7 +2,14 @@ import React from 'react'
 import { Consumption } from '../../lib/types/api'
 import { Card } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
-import { format, parseISO, startOfDay, getHours } from 'date-fns'
+import { format, parseISO, startOfDay, getHours, set } from 'date-fns'
+import { Info } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
 import {
   BarChart,
   Bar,
@@ -68,60 +75,38 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
     )
   }
 
-  // Group data by hour of day and calculate averages
-  const hourlyAverages: HourlyData[] = new Array(24).fill(null).map((_, hour) => {
-    const readingsForHour = data.filter(reading => {
-      if (!reading.interval_start) return false
-      try {
-        const readingTime = parseISO(reading.interval_start)
-        return getHours(readingTime) === hour
-      } catch (error) {
-        console.error('Error parsing date:', error)
-        return false
-      }
+  // Process data to get hourly averages
+  const hourlyAverages = Array.from({ length: 24 }, (_, hour) => {
+    const hourReadings = data.filter(reading => {
+      const readingHour = getHours(parseISO(reading.interval_start))
+      return readingHour === hour
     })
 
-    // Each hour should have 2 readings (30-minute intervals)
-    const validReadings = readingsForHour.filter(reading => 
-      reading.consumption !== undefined && !isNaN(reading.consumption)
-    )
+    const totalConsumption = hourReadings.reduce((sum, reading) => sum + (reading.consumption || 0), 0)
+    const average = hourReadings.length > 0 ? totalConsumption / hourReadings.length : 0
 
-    if (validReadings.length === 0) {
-      return {
-        hour: format(new Date().setHours(hour, 0, 0, 0), 'HH:mm'),
-        value: 0,
-        readings: 0
-      }
-    }
-
-    // Sum up all readings for this hour
-    const hourlyTotal = validReadings.reduce((sum, reading) => 
-      sum + reading.consumption, 0
-    )
-
-    // Calculate average per interval, accounting for number of readings
     return {
-      hour: format(new Date().setHours(hour, 0, 0, 0), 'HH:mm'),
-      value: hourlyTotal / validReadings.length,
-      readings: validReadings.length
+      hour,
+      average,
+      formattedHour: format(set(new Date(), { hours: hour, minutes: 0 }), 'ha')
     }
   })
 
-  // Find peak and off-peak hours
-  const max = Math.max(...hourlyAverages.map(h => h.value))
-  const min = Math.min(...hourlyAverages.filter(h => h.value > 0).map(h => h.value))
-  const peakHour = hourlyAverages.findIndex(h => h.value === max)
-  const offPeakHour = hourlyAverages.findIndex(h => h.value === min)
+  // Find peak and lowest usage hours
+  const maxAverage = Math.max(...hourlyAverages.map(h => h.average))
+  const minAverage = Math.min(...hourlyAverages.filter(h => h.average > 0).map(h => h.average))
 
-  // Mark peak and lowest hours in the data
-  const enhancedHourlyAverages = hourlyAverages.map((hour, index) => ({
-    ...hour,
-    isPeak: index === peakHour,
-    isLowest: index === offPeakHour
+  const enhancedHourlyAverages = hourlyAverages.map(hourData => ({
+    ...hourData,
+    isPeak: hourData.average === maxAverage,
+    isLowest: hourData.average === minAverage && hourData.average > 0
   }))
 
+  const peakHour = enhancedHourlyAverages.find(h => h.isPeak)
+  const lowestHour = enhancedHourlyAverages.find(h => h.isLowest)
+
   // Calculate total consumption for the day
-  const totalConsumption = hourlyAverages.reduce((sum, hour) => sum + hour.value, 0)
+  const totalConsumption = hourlyAverages.reduce((sum, hour) => sum + hour.average, 0)
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -147,22 +132,54 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4" style={{ borderColor: PEAK_COLOR }}>
           <div className="text-center">
-            <div className="text-2xl font-bold">{format(new Date().setHours(peakHour, 0, 0, 0), 'HH:mm')}</div>
+            <div className="text-2xl font-bold">{peakHour?.formattedHour}</div>
             <div className="text-sm text-muted-foreground">Peak Usage Time</div>
-            <div className="text-sm font-medium">{max.toFixed(2)} kWh/h</div>
+            <div className="text-sm font-medium">{maxAverage.toFixed(2)} kWh/h</div>
           </div>
         </Card>
         <Card className="p-4" style={{ borderColor: LOW_COLOR }}>
           <div className="text-center">
-            <div className="text-2xl font-bold">{format(new Date().setHours(offPeakHour, 0, 0, 0), 'HH:mm')}</div>
+            <div className="text-2xl font-bold">{lowestHour?.formattedHour}</div>
             <div className="text-sm text-muted-foreground">Lowest Usage Time</div>
-            <div className="text-sm font-medium">{min.toFixed(2)} kWh/h</div>
+            <div className="text-sm font-medium">{minAverage.toFixed(2)} kWh/h</div>
           </div>
         </Card>
       </div>
       
       {/* Chart Area */}
       <Card className="p-4">
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-lg font-semibold">Daily Usage Pattern</h3>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-transparent">
+                <Info className="h-4 w-4 text-foreground hover:text-foreground/80" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-semibold">Chart Legend</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4" style={{ backgroundColor: PEAK_COLOR }} />
+                    <span>Peak Usage Hour</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4" style={{ backgroundColor: LOW_COLOR }} />
+                    <span>Lowest Usage Hour</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4" style={{ backgroundColor: DEFAULT_COLOR }} />
+                    <span>Regular Usage</span>
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>This chart shows your average energy usage pattern throughout the day. The bars are colored to highlight peak usage (red) and lowest usage (green) hours, helping you identify your consumption patterns.</p>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -171,7 +188,7 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
             >
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" />
               <XAxis
-                dataKey="hour"
+                dataKey="formattedHour"
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
               />
@@ -188,7 +205,7 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar
-                dataKey="value"
+                dataKey="average"
                 radius={[4, 4, 0, 0]}
                 fillOpacity={0.8}
               >
