@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 const isDevelopment = import.meta.env.DEV
 
 export const logger = {
