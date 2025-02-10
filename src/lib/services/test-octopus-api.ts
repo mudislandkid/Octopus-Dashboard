@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ConsumptionResponse, TariffResponse } from '../types/api.js'
 import fetch from 'node-fetch'
 

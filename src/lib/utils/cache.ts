@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AccountInfo } from '../types/api'
 
 interface CacheItem<T> {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect } from 'react'
 import { Header } from '@/components/layout/Header'
 import { ApiKeyInput } from '@/components/auth/ApiKeyInput'

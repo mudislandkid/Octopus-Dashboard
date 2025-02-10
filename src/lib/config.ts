@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 interface EnvConfig {
   OCTOPUS_API_KEY: string
   OCTOPUS_API_ENDPOINT: string

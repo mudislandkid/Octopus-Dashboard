@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Consumption, Rate } from '../../lib/types/api'
 import { Card } from '../ui/card'

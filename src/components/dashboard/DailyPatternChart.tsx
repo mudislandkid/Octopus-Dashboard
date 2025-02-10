@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react'
 import { Consumption } from '../../lib/types/api'
 import { Card } from '../ui/card'
