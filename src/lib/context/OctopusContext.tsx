@@ -3,6 +3,7 @@ import { OctopusApi, OctopusApiError } from '../services/octopus-api'
 import { Consumption, Rate, AccountInfo, StandingCharge } from '../types/api'
 import { DateRange } from 'react-day-picker'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
+import { formatApiDate } from '../utils/date'
 
 interface OctopusContextType {
   api: OctopusApi | null
@@ -12,6 +13,11 @@ interface OctopusContextType {
   electricityImportConsumption: Consumption[] | null
   electricityExportConsumption: Consumption[] | null
   gasConsumption: Consumption[] | null
+  previousPeriodData: {
+    electricityImport: Consumption[] | null
+    electricityExport: Consumption[] | null
+    gas: Consumption[] | null
+  } | null
   electricityRates: Rate[] | null
   gasRates: Rate[] | null
   electricityStandingCharge: StandingCharge | null
@@ -32,6 +38,11 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
   const [electricityImportConsumption, setElectricityImportConsumption] = useState<Consumption[] | null>(null)
   const [electricityExportConsumption, setElectricityExportConsumption] = useState<Consumption[] | null>(null)
   const [gasConsumption, setGasConsumption] = useState<Consumption[] | null>(null)
+  const [previousPeriodData, setPreviousPeriodData] = useState<{
+    electricityImport: Consumption[] | null
+    electricityExport: Consumption[] | null
+    gas: Consumption[] | null
+  } | null>(null)
   const [electricityRates, setElectricityRates] = useState<Rate[] | null>(null)
   const [gasRates, setGasRates] = useState<Rate[] | null>(null)
   const [electricityStandingCharge, setElectricityStandingCharge] = useState<StandingCharge | null>(null)
@@ -47,20 +58,16 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
   const fetchData = async (api: OctopusApi) => {
     if (!dateRange?.from || !dateRange?.to) return
 
-    const from = startOfDay(dateRange.from)
-    const to = endOfDay(dateRange.to || dateRange.from)
+    const from = formatApiDate(startOfDay(dateRange.from))
+    const to = formatApiDate(endOfDay(dateRange.to || dateRange.from))
 
     // Validate date range
-    const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
+    const daysDiff = Math.ceil((dateRange.to!.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24))
     if (daysDiff > 90) {
       throw new Error('Date range cannot exceed 90 days')
     }
 
-    console.log('Fetching data for date range:', {
-      from: from.toISOString(),
-      to: to.toISOString(),
-      days: daysDiff
-    })
+    console.log('Fetching data for date range:', { from, to, days: daysDiff })
 
     // Get account info and discover meters
     console.log('Fetching account info and discovering meters...')
@@ -69,77 +76,41 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
     console.log('Account info response:', accountData)
     setAccountInfo(accountData)
 
-    try {
-      // Get import electricity consumption
-      console.log('Fetching import electricity consumption...')
-      const importConsumption = await api.getElectricityConsumption(
-        from.toISOString(),
-        to.toISOString(),
-        false
-      )
-      setElectricityImportConsumption(importConsumption.results)
-    } catch (error) {
-      console.log('No import electricity meter found or error fetching data:', error)
+    // Fetch all consumption data in parallel
+    const consumptionData = await api.fetchAllConsumption(from, to)
+    if (consumptionData.currentPeriod.importElectricity) {
+      setElectricityImportConsumption(consumptionData.currentPeriod.importElectricity.results)
+    }
+    if (consumptionData.currentPeriod.exportElectricity) {
+      setElectricityExportConsumption(consumptionData.currentPeriod.exportElectricity.results)
+    }
+    if (consumptionData.currentPeriod.gas) {
+      setGasConsumption(consumptionData.currentPeriod.gas.results)
     }
 
-    try {
-      // Get export electricity consumption
-      console.log('Fetching export electricity consumption...')
-      const exportConsumption = await api.getElectricityConsumption(
-        from.toISOString(),
-        to.toISOString(),
-        true
-      )
-      setElectricityExportConsumption(exportConsumption.results)
-    } catch (error) {
-      console.log('No export electricity meter found or error fetching data:', error)
+    // Set previous period data
+    if (consumptionData.previousPeriod) {
+      setPreviousPeriodData({
+        electricityImport: consumptionData.previousPeriod.importElectricity?.results || null,
+        electricityExport: consumptionData.previousPeriod.exportElectricity?.results || null,
+        gas: consumptionData.previousPeriod.gas?.results || null
+      })
     }
 
-    try {
-      // Get gas consumption
-      console.log('Fetching gas consumption...')
-      const consumption = await api.getGasConsumption(
-        from.toISOString(),
-        to.toISOString()
-      )
-      setGasConsumption(consumption.results)
-
-      // Get gas rates and standing charges
-      console.log('Fetching gas rates and standing charges...')
-      const gasResponse = await api.getGasStandingCharge()
-      console.log('Gas rates and standing charges response:', gasResponse)
-      
-      // Set gas rates
-      setGasRates(gasResponse.rates)
-
-      // Set gas standing charge
-      setGasStandingCharge(gasResponse.standingCharge)
-    } catch (error) {
-      console.log('No gas meter found or error fetching data:', error)
+    // Fetch all tariff data in parallel
+    const tariffData = await api.fetchAllTariffs(from, to)
+    if (tariffData.electricityRates) {
+      setElectricityRates(tariffData.electricityRates.results)
     }
-
-    try {
-      // Get electricity rates
-      console.log('Fetching electricity rates...')
-      const rates = await api.getElectricityTariff()
-      console.log('Electricity rates response:', rates)
-      
-      // Set the rates directly
-      setElectricityRates(rates.results)
-      console.log('Current electricity rates:', rates.results)
-      
-      // Get standing charges
-      console.log('Fetching electricity standing charges...')
-      const standingCharges = await api.getElectricityStandingCharge()
-      console.log('Standing charges response:', standingCharges)
-      
-      // Get the current standing charge (most recent one)
-      const currentStandingCharge = standingCharges.results
+    if (tariffData.electricityStandingCharges) {
+      const currentCharge = tariffData.electricityStandingCharges.results
         .sort((a, b) => new Date(b.valid_from).getTime() - new Date(a.valid_from).getTime())[0]
-      setElectricityStandingCharge(currentStandingCharge)
-      
-    } catch (error) {
-      console.log('Error fetching electricity rates or standing charges:', error)
+      setElectricityStandingCharge(currentCharge)
+    }
+    if (tariffData.gasStandingCharges) {
+      const currentCharge = tariffData.gasStandingCharges.results
+        .sort((a, b) => new Date(b.valid_from).getTime() - new Date(a.valid_from).getTime())[0]
+      setGasStandingCharge(currentCharge)
     }
   }
 
@@ -214,6 +185,7 @@ export function OctopusProvider({ children }: { children: ReactNode }) {
         electricityImportConsumption,
         electricityExportConsumption,
         gasConsumption,
+        previousPeriodData,
         electricityRates,
         gasRates,
         electricityStandingCharge,

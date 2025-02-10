@@ -129,7 +129,7 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
         <Card className="p-4" style={{ borderColor: PEAK_COLOR }}>
           <div className="text-center">
             <div className="text-2xl font-bold">{peakHour?.formattedHour}</div>
@@ -152,8 +152,11 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
           <h3 className="text-lg font-semibold">Daily Usage Pattern</h3>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-transparent">
-                <Info className="h-4 w-4 text-foreground hover:text-foreground/80" />
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+              >
+                <Info className="w-5 h-5 stroke-[2] text-foreground [shape-rendering:geometricPrecision]" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80">
@@ -180,7 +183,7 @@ export function DailyPatternChart({ data, loading, type }: DailyPatternChartProp
             </PopoverContent>
           </Popover>
         </div>
-        <div className="h-[300px] w-full">
+        <div className="h-[300px] lg:h-[400px] 2xl:h-[500px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={enhancedHourlyAverages}

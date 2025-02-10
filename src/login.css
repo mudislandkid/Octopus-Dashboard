@@ -1,0 +1,96 @@
+.container-center {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.login-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 2rem 1rem;
+}
+
+.dashboard-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.login-container .card {
+  width: 100%;
+}
+
+.login-container .card-header {
+  text-align: center;
+}
+
+.login-container .form-label {
+  text-align: left;
+  display: block;
+}
+
+.login-container input {
+  text-align: left;
+}
+
+/* Override any inherited text alignment */
+.login-container > * {
+  text-align: center;
+}
+
+.card-header {
+  text-align: center;
+}
+
+.form-label {
+  text-align: left;
+  display: block;
+}
+
+input {
+  text-align: left;
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 
+      5px 0 20px rgba(64, 224, 208, 0.3),
+      -5px 0 20px rgba(64, 224, 208, 0.1);
+  }
+  25% {
+    box-shadow: 
+      0 5px 20px rgba(64, 224, 208, 0.3),
+      0 -5px 20px rgba(64, 224, 208, 0.1);
+  }
+  50% {
+    box-shadow: 
+      -5px 0 20px rgba(64, 224, 208, 0.3),
+      5px 0 20px rgba(64, 224, 208, 0.1);
+  }
+  75% {
+    box-shadow: 
+      0 -5px 20px rgba(64, 224, 208, 0.3),
+      0 5px 20px rgba(64, 224, 208, 0.1);
+  }
+  100% {
+    box-shadow: 
+      5px 0 20px rgba(64, 224, 208, 0.3),
+      -5px 0 20px rgba(64, 224, 208, 0.1);
+  }
+}
+
+.glow-card {
+  animation: glow 4s linear infinite;
+  border: 1px solid rgba(64, 224, 208, 0.1);
+  background: rgba(15, 23, 41, 0.95);
+  position: relative;
+} 
