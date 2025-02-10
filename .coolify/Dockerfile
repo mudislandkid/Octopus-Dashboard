@@ -1,6 +1,11 @@
-FROM node:18-slim as builder
+FROM node:18 as builder
 
 WORKDIR /app
+
+# Set environment variables for better npm behavior
+ENV ROLLUP_SKIP_NODE_RESOLVE=true
+ENV NODE_ENV=production
+ENV npm_config_build_from_source=true
 
 # Install necessary build dependencies
 RUN apt-get update && \
@@ -13,8 +18,8 @@ RUN apt-get update && \
 # Copy package files
 COPY package*.json ./
 
-# Clean install dependencies
-RUN npm ci
+# Install dependencies with legacy peer deps flag
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the application
 COPY . .
