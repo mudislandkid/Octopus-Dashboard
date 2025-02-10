@@ -3,7 +3,7 @@ FROM node:18 as builder
 WORKDIR /app
 
 # Set environment variables for better npm behavior
-ENV ROLLUP_SKIP_NODE_RESOLVE=true
+ENV ROLLUP_NATIVE=false
 ENV NODE_ENV=production
 ENV npm_config_build_from_source=true
 
@@ -24,8 +24,8 @@ RUN npm install --legacy-peer-deps
 # Copy the rest of the application
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application with environment variable to skip native modules
+RUN ROLLUP_NATIVE=false npm run build
 
 # Production stage
 FROM node:18-slim
