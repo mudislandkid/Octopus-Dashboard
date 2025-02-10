@@ -106,7 +106,7 @@ export function DashboardGrid() {
     refreshData()
   }
 
-  const calculateStats = (data: Consumption[] | null | undefined) => {
+  const calculateStats = (data: Consumption[] | null) => {
     if (!data || data.length === 0) return null
     
     const total = data.reduce((sum, reading) => sum + reading.consumption, 0)
@@ -303,28 +303,32 @@ export function DashboardGrid() {
   }, [gasConsumption, previousPeriodData, dateRange, todayData])
 
   return (
-    <div className="container mx-auto p-4 max-w-[2000px]">
-      <div className="space-y-8">
+    <div className="w-full min-h-screen bg-background">
+      <div className="space-y-3 sm:space-y-4 max-w-[1800px] mx-auto px-0 sm:px-4 lg:px-6 xl:px-8">
         {/* Date Range Controls */}
-        <Card className="bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-full">
-          <CardHeader>
-            <CardTitle className="text-lg font-medium">Date Range</CardTitle>
+        <Card className="rounded-none sm:rounded-lg bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="text-sm sm:text-base font-medium">Date Range</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <CardContent className="space-y-3">
             <DateRangePicker
               date={dateRange}
               onSelect={setDateRange}
+              className="w-full"
             />
-            <div className="flex items-center gap-2">
-              <DateRangeButtons
-                onSelect={setDateRange}
-                disabled={isLoading}
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-1.5 flex-1">
+                <DateRangeButtons
+                  onSelect={setDateRange}
+                  disabled={isLoading}
+                />
+              </div>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => refreshData()}
                 disabled={isLoading}
+                className="shrink-0"
               >
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
@@ -333,393 +337,356 @@ export function DashboardGrid() {
         </Card>
 
         {/* Main Content */}
-        <div className="space-y-6">
+        <div className="px-2 sm:px-4 space-y-3 sm:space-y-4">
           {/* Stats Cards */}
-          <Grid container spacing={3} sx={{ width: '100%', margin: 0 }}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(todayData?.electricityImport || isLoading) && (
-              <Grid item xs={12} md={6} lg={4} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle>Electricity Import</CardTitle>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                        >
-                          <Info className="w-5 h-5 stroke-[2] text-foreground [shape-rendering:geometricPrecision]" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Metrics Calculation</h4>
-                          <div className="text-sm space-y-2">
-                            <p><span className="font-medium">Total Usage:</span> Sum of all consumption readings in the selected period.</p>
-                            <p><span className="font-medium">Percentage Change:</span> Comparison with an equal length previous period. For example, if you select 7 days, it compares with the 7 days before that.</p>
-                            <p><span className="font-medium">Peak Usage Time:</span> The hour of day with the highest average consumption.</p>
-                            <p><span className="font-medium">CO2 Emissions:</span> Calculated using standard conversion factors (0.233 kg CO2e/kWh for electricity, 0.184 kg CO2e/kWh for gas).</p>
-                          </div>
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">Electricity Import</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                      >
+                        <Info className="h-5 w-5 text-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Metrics Calculation</h4>
+                        <div className="text-sm space-y-1">
+                          <p><span className="font-medium">Total Usage:</span> Sum of all consumption readings</p>
+                          <p><span className="font-medium">Peak Usage Time:</span> Hour with highest average consumption</p>
+                          <p><span className="font-medium">CO2 Emissions:</span> Based on UK grid average (0.233 kg CO2e/kWh)</p>
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-2xl font-bold">{electricityMetrics?.total.toFixed(2) || '0'} kWh</div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold">{electricityMetrics?.total.toFixed(2) || '0'} kWh</div>
+                        <div className="text-sm text-muted-foreground">
+                          Over {calculateStats(todayData?.electricityImport || null)?.validReadings || 0} readings
+                        </div>
+                        {previousPeriodData?.electricityImport && (
                           <div className="text-sm text-muted-foreground">
-                            Over {calculateStats(todayData?.electricityImport)?.validReadings || 0} readings
+                            Previous: {previousPeriodData.electricityImport.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
                           </div>
-                          {previousPeriodData?.electricityImport && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Previous: {previousPeriodData.electricityImport.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
-                            </div>
-                          )}
+                        )}
+                      </div>
+                      {electricityMetrics && electricityMetrics.percentChange !== null && (
+                        <div className="text-right">
+                          <div className={`flex items-center ${electricityMetrics.percentChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                            {electricityMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                            {Math.abs(electricityMetrics.percentChange).toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">vs previous</div>
                         </div>
-                        {electricityMetrics && electricityMetrics.percentChange !== null && (
-                          <div className="flex flex-col items-end">
-                            <div className={`flex items-center ${electricityMetrics.percentChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                              {electricityMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                              {Math.abs(electricityMetrics.percentChange).toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              compared to previous period
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        {electricityMetrics?.peakHour !== null && electricityMetrics?.peakHour !== undefined && (
-                          <div>
-                            <div className="text-sm font-medium">Peak Usage</div>
-                            <div className="text-2xl">{format(new Date().setHours(electricityMetrics.peakHour, 0), 'ha')}</div>
-                          </div>
-                        )}
-                        {electricityMetrics?.co2 !== undefined && (
-                          <div className="flex items-start gap-2">
-                            <Leaf className="w-5 h-5 text-green-500" />
-                            <div>
-                              <div className="text-sm font-medium">CO2 Emissions</div>
-                              <div className="text-lg">{electricityMetrics.co2.toFixed(1)} kg</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </Grid>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {electricityMetrics && electricityMetrics.peakHour !== null && (
+                        <div>
+                          <div className="text-sm font-medium">Peak Usage</div>
+                          <div className="text-xl">{format(new Date().setHours(electricityMetrics.peakHour, 0), 'ha')}</div>
+                        </div>
+                      )}
+                      {electricityMetrics && electricityMetrics.co2 !== undefined && (
+                        <div className="flex items-start gap-2">
+                          <Leaf className="w-4 h-4 text-green-500 mt-1" />
+                          <div>
+                            <div className="text-sm font-medium">CO2</div>
+                            <div className="text-xl">{electricityMetrics.co2.toFixed(1)} kg</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.electricityExport || isLoading) && (
-              <Grid item xs={12} md={6} lg={4} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle>Electricity Export</CardTitle>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                        >
-                          <Info className="w-5 h-5 stroke-[2] text-foreground [shape-rendering:geometricPrecision]" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Metrics Calculation</h4>
-                          <div className="text-sm space-y-2">
-                            <p><span className="font-medium">Total Generation:</span> Sum of all export readings in the selected period.</p>
-                            <p><span className="font-medium">Percentage Change:</span> Comparison with an equal length previous period. For example, if you select 7 days, it compares with the 7 days before that.</p>
-                            <p><span className="font-medium">Peak Generation Time:</span> The hour of day with the highest average export.</p>
-                            <p><span className="font-medium">CO2 Saved:</span> Calculated using standard conversion factors (0.233 kg CO2e/kWh for electricity).</p>
-                          </div>
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">Electricity Export</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                      >
+                        <Info className="h-5 w-5 text-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Metrics Calculation</h4>
+                        <div className="text-sm space-y-1">
+                          <p><span className="font-medium">Total Generation:</span> Sum of all export readings</p>
+                          <p><span className="font-medium">Peak Generation Time:</span> Hour with highest average export</p>
+                          <p><span className="font-medium">CO2 Saved:</span> Based on UK grid average (0.233 kg CO2e/kWh)</p>
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-2xl font-bold">{exportMetrics?.total.toFixed(2) || '0'} kWh</div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold">{exportMetrics?.total.toFixed(2) || '0'} kWh</div>
+                        <div className="text-sm text-muted-foreground">
+                          Over {calculateStats(todayData?.electricityExport || null)?.validReadings || 0} readings
+                        </div>
+                        {previousPeriodData?.electricityExport && (
                           <div className="text-sm text-muted-foreground">
-                            Over {calculateStats(todayData?.electricityExport)?.validReadings || 0} readings
-                          </div>
-                          {previousPeriodData?.electricityExport && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Previous: {previousPeriodData.electricityExport.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {exportMetrics && exportMetrics.percentChange !== null && (
-                            <div className="flex flex-col items-end">
-                              <div className={`flex items-center ${exportMetrics.percentChange > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {exportMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                                {Math.abs(exportMetrics.percentChange).toFixed(1)}%
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                compared to previous period
-                              </div>
-                            </div>
-                          )}
-                          {exportMetrics?.exportPercentage !== undefined && (
-                            <div className="text-sm text-muted-foreground">
-                              {exportMetrics.exportPercentage.toFixed(1)}% of consumption
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        {exportMetrics?.peakHour !== null && exportMetrics?.peakHour !== undefined && (
-                          <div>
-                            <div className="text-sm font-medium">Peak Generation</div>
-                            <div className="text-2xl">{format(new Date().setHours(exportMetrics.peakHour, 0), 'ha')}</div>
-                          </div>
-                        )}
-                        {exportMetrics?.co2Saved !== undefined && (
-                          <div className="flex items-start gap-2">
-                            <Leaf className="w-5 h-5 text-green-500" />
-                            <div>
-                              <div className="text-sm font-medium">CO2 Saved</div>
-                              <div className="text-lg">{exportMetrics.co2Saved.toFixed(1)} kg</div>
-                            </div>
+                            Previous: {previousPeriodData.electricityExport.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
                           </div>
                         )}
                       </div>
+                      {exportMetrics && exportMetrics.percentChange !== null && (
+                        <div className="text-right">
+                          <div className={`flex items-center ${exportMetrics.percentChange > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {exportMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                            {Math.abs(exportMetrics.percentChange).toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">vs previous</div>
+                        </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </Grid>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {exportMetrics && exportMetrics.peakHour !== null && (
+                        <div>
+                          <div className="text-sm font-medium">Peak Generation</div>
+                          <div className="text-xl">{format(new Date().setHours(exportMetrics.peakHour, 0), 'ha')}</div>
+                        </div>
+                      )}
+                      {exportMetrics && exportMetrics.co2Saved !== undefined && (
+                        <div className="flex items-start gap-2">
+                          <Leaf className="w-4 h-4 text-green-500 mt-1" />
+                          <div>
+                            <div className="text-sm font-medium">CO2 Saved</div>
+                            <div className="text-xl">{exportMetrics.co2Saved.toFixed(1)} kg</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.gas || isLoading) && (
-              <Grid item xs={12} md={6} lg={4} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle>Gas</CardTitle>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                        >
-                          <Info className="w-5 h-5 stroke-[2] text-foreground [shape-rendering:geometricPrecision]" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Metrics Calculation</h4>
-                          <div className="text-sm space-y-2">
-                            <p><span className="font-medium">Total Usage:</span> Sum of all consumption readings in the selected period.</p>
-                            <p><span className="font-medium">Percentage Change:</span> Comparison with an equal length previous period. For example, if you select 7 days, it compares with the 7 days before that.</p>
-                            <p><span className="font-medium">CO2 Emissions:</span> Calculated using standard conversion factors (0.184 kg CO2e/kWh for gas).</p>
-                          </div>
+              <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">Gas</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                      >
+                        <Info className="h-5 w-5 text-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Metrics Calculation</h4>
+                        <div className="text-sm space-y-1">
+                          <p><span className="font-medium">Total Usage:</span> Sum of all consumption readings</p>
+                          <p><span className="font-medium">CO2 Emissions:</span> Based on UK grid average (0.184 kg CO2e/kWh)</p>
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-2xl font-bold">{gasMetrics?.total.toFixed(2)} kWh</div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold">{gasMetrics?.total.toFixed(2) || '0'} kWh</div>
+                        <div className="text-sm text-muted-foreground">
+                          Over {calculateStats(todayData?.gas || null)?.validReadings || 0} readings
+                        </div>
+                        {previousPeriodData?.gas && (
                           <div className="text-sm text-muted-foreground">
-                            Over {calculateStats(todayData?.gas)?.validReadings || 0} readings
-                          </div>
-                          {previousPeriodData?.gas && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Previous: {previousPeriodData.gas.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
-                            </div>
-                          )}
-                        </div>
-                        {gasMetrics && gasMetrics.percentChange !== null && (
-                          <div className="flex flex-col items-end">
-                            <div className={`flex items-center ${gasMetrics.percentChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                              {gasMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                              {Math.abs(gasMetrics.percentChange).toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              compared to previous period
-                            </div>
+                            Previous: {previousPeriodData.gas.reduce((sum, r) => sum + r.consumption, 0).toFixed(2)} kWh
                           </div>
                         )}
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        {gasMetrics?.co2 && (
-                          <div className="flex items-start gap-2">
-                            <Leaf className="w-5 h-5 text-green-500" />
-                            <div>
-                              <div className="text-sm font-medium">CO2 Emissions</div>
-                              <div className="text-lg">{gasMetrics.co2.toFixed(1)} kg</div>
-                            </div>
+                      {gasMetrics && gasMetrics.percentChange !== null && (
+                        <div className="text-right">
+                          <div className={`flex items-center ${gasMetrics.percentChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                            {gasMetrics.percentChange > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                            {Math.abs(gasMetrics.percentChange).toFixed(1)}%
                           </div>
-                        )}
+                          <div className="text-xs text-muted-foreground">vs previous</div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-start gap-2">
+                        <Leaf className="w-4 h-4 text-green-500 mt-1" />
+                        <div>
+                          <div className="text-sm font-medium">CO2</div>
+                          <div className="text-xl">{gasMetrics?.co2.toFixed(1)} kg</div>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  </div>
+                </CardContent>
+              </Card>
             )}
-          </Grid>
+          </div>
 
           {/* Charts */}
-          <Grid container spacing={3} sx={{ width: '100%', margin: 0 }}>
+          <div className="grid gap-6">
             {(todayData?.electricityImport || isLoading) && (
-              <Grid item xs={12} sx={{ width: '100%' }}>
-                <Card>
-                  <CardHeader className="flex-row items-center justify-between">
-                    <div className="flex flex-col space-y-1.5">
-                      <CardTitle>Electricity Import Consumption</CardTitle>
-                    </div>
-                    <FormControlLabel
-                      control={
-                        <MuiSwitch
-                          checked={showPreviousPeriod}
-                          onChange={(e) => setShowPreviousPeriod(e.target.checked)}
-                          sx={{
-                            '& .MuiSwitch-switchBase': {
-                              color: 'rgba(255, 255, 255, 0.8)',
-                              '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                              },
-                            },
-                            '& .MuiSwitch-switchBase.Mui-checked': {
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                  <div className="space-y-1">
+                    <CardTitle>Electricity Import</CardTitle>
+                  </div>
+                  <FormControlLabel
+                    control={
+                      <MuiSwitch
+                        checked={showPreviousPeriod}
+                        onChange={(e) => setShowPreviousPeriod(e.target.checked)}
+                        sx={{
+                          '& .MuiSwitch-switchBase': {
+                            margin: 1,
+                            padding: 0,
+                            '&.Mui-checked': {
                               color: '#40E0D0',
-                              '&:hover': {
-                                backgroundColor: 'rgba(64, 224, 208, 0.08)',
+                              '& + .MuiSwitch-track': {
+                                opacity: 0.5,
+                                backgroundColor: '#40E0D0',
                               },
                             },
-                            '& .MuiSwitch-track': {
-                              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                              border: '2px solid rgba(255, 255, 255, 0.5)',
-                              opacity: 1,
-                            },
-                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                              backgroundColor: '#40E0D0',
-                              opacity: 0.3,
-                              border: '2px solid #40E0D0',
-                            },
-                          }}
-                        />
-                      }
-                      label="Show Previous Period"
-                      className="text-sm text-muted-foreground m-0"
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <ConsumptionChart
-                      title="Consumption"
-                      data={todayData?.electricityImport ?? []}
-                      previousPeriodData={previousPeriodData?.electricityImport}
-                      showPreviousPeriod={showPreviousPeriod}
-                      rates={electricityRates}
-                      unit="kWh"
-                      loading={isLoading}
-                      standingCharge={electricityStandingCharge?.value_inc_vat}
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+                          },
+                          '& .MuiSwitch-thumb': {
+                            width: 16,
+                            height: 16,
+                            backgroundColor: 'currentColor',
+                          },
+                          '& .MuiSwitch-track': {
+                            opacity: 0.3,
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            borderRadius: 20 / 2,
+                          },
+                        }}
+                      />
+                    }
+                    label="Compare Previous"
+                    className="text-xs sm:text-sm m-0"
+                  />
+                </CardHeader>
+                <CardContent>
+                  <ConsumptionChart
+                    title="Consumption"
+                    data={todayData?.electricityImport ?? []}
+                    previousPeriodData={previousPeriodData?.electricityImport}
+                    showPreviousPeriod={showPreviousPeriod}
+                    rates={electricityRates}
+                    unit="kWh"
+                    loading={isLoading}
+                    standingCharge={electricityStandingCharge?.value_inc_vat}
+                  />
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.electricityExport || isLoading) && (
-              <Grid item xs={12} sx={{ width: '100%' }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Electricity Export</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ConsumptionChart
-                      title="Generation"
-                      data={todayData?.electricityExport ?? []}
-                      unit="kWh"
-                      loading={isLoading}
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Electricity Export</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ConsumptionChart
+                    title="Generation"
+                    data={todayData?.electricityExport ?? []}
+                    unit="kWh"
+                    loading={isLoading}
+                  />
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.gas || isLoading) && (
-              <Grid item xs={12} sx={{ width: '100%' }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Gas Consumption</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ConsumptionChart
-                      title="Consumption"
-                      data={todayData?.gas ?? []}
-                      rates={gasRates}
-                      unit="kWh"
-                      loading={isLoading}
-                      standingCharge={gasStandingCharge?.value_inc_vat}
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gas Consumption</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ConsumptionChart
+                    title="Consumption"
+                    data={todayData?.gas ?? []}
+                    rates={gasRates}
+                    unit="kWh"
+                    loading={isLoading}
+                    standingCharge={gasStandingCharge?.value_inc_vat}
+                  />
+                </CardContent>
+              </Card>
             )}
-          </Grid>
+          </div>
 
           {/* Daily Pattern Charts */}
-          <Grid container spacing={3} sx={{ width: '100%', margin: 0 }}>
+          <div className="grid gap-6 lg:grid-cols-2">
             {(todayData?.electricityImport || isLoading) && (
-              <Grid item xs={12} lg={6} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Electricity Import Daily Pattern</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DailyPatternChart
-                      data={todayData?.electricityImport ?? null}
-                      loading={isLoading}
-                      type="electricity"
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Electricity Import Daily Pattern</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DailyPatternChart
+                    data={todayData?.electricityImport ?? null}
+                    loading={isLoading}
+                    type="electricity"
+                  />
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.electricityExport || isLoading) && (
-              <Grid item xs={12} lg={6} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Electricity Export Daily Pattern</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DailyPatternChart
-                      data={todayData?.electricityExport ?? null}
-                      loading={isLoading}
-                      type="electricity"
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Electricity Export Daily Pattern</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DailyPatternChart
+                    data={todayData?.electricityExport ?? null}
+                    loading={isLoading}
+                    type="electricity"
+                  />
+                </CardContent>
+              </Card>
             )}
 
             {(todayData?.gas || isLoading) && (
-              <Grid item xs={12} lg={6} sx={{ width: '100%' }}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Gas Daily Pattern</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <DailyPatternChart
-                      data={todayData?.gas ?? null}
-                      loading={isLoading}
-                      type="gas"
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Gas Daily Pattern</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DailyPatternChart
+                    data={todayData?.gas ?? null}
+                    loading={isLoading}
+                    type="gas"
+                  />
+                </CardContent>
+              </Card>
             )}
-          </Grid>
+          </div>
         </div>
       </div>
     </div>

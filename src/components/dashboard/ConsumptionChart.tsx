@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Consumption, Rate } from '../../lib/types/api'
 import { Card } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
@@ -82,6 +83,16 @@ const LOW_COLOR = 'rgba(46, 213, 115, 0.9)'
 const PREVIOUS_PERIOD_COLOR = 'rgba(255, 140, 0, 0.9)' // Brighter orange for better visibility
 
 export function ConsumptionChart({ title, data, previousPeriodData, showPreviousPeriod, rates, unit, loading = false, standingCharge }: ConsumptionChartProps) {
+  const [showScrollHint, setShowScrollHint] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowScrollHint(false)
+    }, 2000) // 2 seconds duration
+
+    return () => clearTimeout(timer)
+  }, [])
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -890,115 +901,133 @@ export function ConsumptionChart({ title, data, previousPeriodData, showPrevious
             </PopoverContent>
           </Popover>
         </div>
-        <div className="h-[300px] lg:h-[400px] 2xl:h-[500px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={finalChartData}
-              margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" />
-              <XAxis
-                dataKey="formattedDate"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                interval={2}
-                angle={-45}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis
-                yAxisId="consumption"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={(value) => `${value.toFixed(1)}`}
-                label={{ 
-                  value: unit,
-                  angle: -90,
-                  position: 'insideLeft',
-                  fill: 'hsl(var(--muted-foreground))'
-                }}
-              />
-              {rates && (
-                <YAxis
-                  yAxisId="price"
-                  orientation="right"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+        <div className="relative h-[400px] sm:h-[300px] lg:h-[400px] 2xl:h-[500px] w-full overflow-x-auto">
+          {showScrollHint && window.innerWidth < 768 && (
+            <div 
+              className="absolute inset-0 pointer-events-none z-10 animate-scroll-hint bg-gradient-to-r from-transparent via-[#40E0D0]/20 to-transparent"
+              aria-hidden="true"
+            />
+          )}
+          <div className="absolute inset-0 min-w-[800px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart
+                data={finalChartData}
+                margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/20" />
+                <XAxis
+                  dataKey="formattedDate"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => `${value.toFixed(0)}p`}
+                  interval={4}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  scale="band"
+                />
+                <YAxis
+                  yAxisId="consumption"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(value) => `${value.toFixed(1)}`}
+                  width={50}
                   label={{ 
-                    value: 'Price (p/kWh)',
-                    angle: 90,
-                    position: 'insideRight',
-                    fill: 'hsl(var(--muted-foreground))'
+                    value: unit,
+                    angle: -90,
+                    position: 'insideLeft',
+                    fill: 'hsl(var(--muted-foreground))',
+                    fontSize: 12,
+                    offset: 10
                   }}
                 />
-              )}
-              <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine
-                yAxisId="consumption"
-                y={averageDailyUsage}
-                stroke={TURQUOISE}
-                strokeDasharray="3 3"
-                strokeWidth={2}
-                label={{
-                  value: `Avg: ${averageDailyUsage.toFixed(1)} ${unit}`,
-                  fill: TURQUOISE,
-                  position: 'insideLeft',
-                  offset: +12,
-                  dy: -12
-                }}
-              />
-              {showPreviousPeriod && previousDailyAverage > 0 && (
+                {rates && (
+                  <YAxis
+                    yAxisId="price"
+                    orientation="right"
+                    tick={{ 
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 12
+                    }}
+                    tickLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => `${value.toFixed(0)}p`}
+                    width={45}
+                    label={{ 
+                      value: 'Price (p/kWh)',
+                      angle: 90,
+                      position: 'insideRight',
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 12,
+                      offset: 5
+                    }}
+                  />
+                )}
+                <Tooltip content={<CustomTooltip />} />
                 <ReferenceLine
                   yAxisId="consumption"
-                  y={previousDailyAverage}
-                  stroke={BRIGHT_PINK}
-                  strokeDasharray="5 5"
+                  y={averageDailyUsage}
+                  stroke={TURQUOISE}
+                  strokeDasharray="3 3"
                   strokeWidth={2}
                   label={{
-                    value: `Prev Avg: ${previousDailyAverage.toFixed(1)} ${unit}`,
-                    fill: BRIGHT_PINK,
-                    position: 'insideRight',
-                    offset: +20,
+                    value: `Avg: ${averageDailyUsage.toFixed(1)} ${unit}`,
+                    fill: TURQUOISE,
+                    position: 'insideLeft',
+                    offset: +12,
                     dy: -12
                   }}
                 />
-              )}
-              <Line
-                yAxisId="consumption"
-                type="monotone"
-                dataKey="value"
-                stroke="hsl(var(--foreground))"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: 'hsl(var(--foreground))' }}
-              />
-              {showPreviousPeriod && (
+                {showPreviousPeriod && previousDailyAverage > 0 && (
+                  <ReferenceLine
+                    yAxisId="consumption"
+                    y={previousDailyAverage}
+                    stroke={BRIGHT_PINK}
+                    strokeDasharray="5 5"
+                    strokeWidth={2}
+                    label={{
+                      value: `Prev Avg: ${previousDailyAverage.toFixed(1)} ${unit}`,
+                      fill: BRIGHT_PINK,
+                      position: 'insideRight',
+                      offset: +20,
+                      dy: -12
+                    }}
+                  />
+                )}
                 <Line
                   yAxisId="consumption"
                   type="monotone"
-                  dataKey="previousValue"
-                  stroke={PREVIOUS_PERIOD_COLOR}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  name="Previous Period"
-                  connectNulls={true}
-                />
-              )}
-              {rates && !showPreviousPeriod && (
-                <Line
-                  yAxisId="price"
-                  type="monotone"
-                  dataKey="price"
-                  stroke={VIVID_PURPLE}
+                  dataKey="value"
+                  stroke="hsl(var(--foreground))"
                   strokeWidth={2}
                   dot={false}
-                  name="Price"
+                  activeDot={{ r: 4, fill: 'hsl(var(--foreground))' }}
                 />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
+                {showPreviousPeriod && (
+                  <Line
+                    yAxisId="consumption"
+                    type="monotone"
+                    dataKey="previousValue"
+                    stroke={PREVIOUS_PERIOD_COLOR}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Previous Period"
+                    connectNulls={true}
+                  />
+                )}
+                {rates && !showPreviousPeriod && (
+                  <Line
+                    yAxisId="price"
+                    type="monotone"
+                    dataKey="price"
+                    stroke={VIVID_PURPLE}
+                    strokeWidth={2}
+                    dot={false}
+                    name="Price"
+                  />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </Card>
     </div>

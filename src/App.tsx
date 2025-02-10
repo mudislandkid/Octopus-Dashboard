@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header'
 import { ApiKeyInput } from '@/components/auth/ApiKeyInput'
 import { DashboardGrid } from '@/components/dashboard/DashboardGrid'
 import { OctopusProvider, useOctopus } from '@/lib/context/OctopusContext'
+import { Toaster } from '@/components/ui/toaster'
 import './login.css'
 
 function AppContent() {
@@ -16,10 +17,10 @@ function AppContent() {
   const isLoginView = !electricityImportConsumption && !electricityExportConsumption && !gasConsumption
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#0f1729] flex flex-col">
       <Header />
       {isLoginView ? (
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex-1 flex items-center justify-center p-4 bg-[#0f1729]">
           <div className="w-full max-w-xl lg:max-w-2xl">
             <ApiKeyInput
               error={error}
@@ -33,6 +34,7 @@ function AppContent() {
           <DashboardGrid />
         </main>
       )}
+      <Toaster />
     </div>
   )
 }

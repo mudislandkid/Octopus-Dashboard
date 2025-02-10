@@ -3,51 +3,37 @@ import { DateRange } from "react-day-picker"
 import { startOfDay, endOfDay, subDays } from "date-fns"
 
 interface DateRangeButtonsProps {
-  onSelect: (range: DateRange) => void
+  onSelect: (range: DateRange | undefined) => void
   disabled?: boolean
 }
 
 export function DateRangeButtons({ onSelect, disabled }: DateRangeButtonsProps) {
+  const now = new Date()
+
   const handleSelect = (days: number) => {
-    const now = new Date()
-    
-    if (days === 0) {
-      // Today
-      onSelect({
-        from: startOfDay(now),
-        to: endOfDay(now)
-      })
-    } else if (days === 1) {
-      // Yesterday
-      const yesterday = subDays(now, 1)
-      onSelect({
-        from: startOfDay(yesterday),
-        to: endOfDay(yesterday)
-      })
-    } else {
-      // Last N days
-      onSelect({
-        from: startOfDay(subDays(now, days - 1)),
-        to: endOfDay(now)
-      })
-    }
+    onSelect({
+      from: startOfDay(subDays(now, days - 1)),
+      to: endOfDay(now)
+    })
   }
 
   return (
-    <div className="flex gap-2">
+    <>
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handleSelect(0)}
+        onClick={() => handleSelect(1)}
         disabled={disabled}
+        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
       >
         Today
       </Button>
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handleSelect(1)}
+        onClick={() => handleSelect(2)}
         disabled={disabled}
+        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
       >
         Yesterday
       </Button>
@@ -56,17 +42,19 @@ export function DateRangeButtons({ onSelect, disabled }: DateRangeButtonsProps) 
         size="sm"
         onClick={() => handleSelect(7)}
         disabled={disabled}
+        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
       >
-        Last 7 Days
+        7 Days
       </Button>
       <Button
         variant="outline"
         size="sm"
         onClick={() => handleSelect(30)}
         disabled={disabled}
+        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
       >
-        Last 30 Days
+        30 Days
       </Button>
-    </div>
+    </>
   )
 } 

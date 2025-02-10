@@ -1,4 +1,4 @@
-import { ConsumptionResponse, TariffResponse, AccountInfo, StandingChargeResponse, Property } from '../types/api'
+import { ConsumptionResponse, TariffResponse, AccountInfo, StandingChargeResponse, Property, GasMeterPoint } from '../types/api'
 import { cache } from '../utils/cache'
 import { formatApiDate, extractTariffDetails } from '../utils/date'
 
@@ -15,11 +15,6 @@ interface MeterPoint {
   is_export: boolean
 }
 
-interface GasMeterPoint {
-  mprn: string
-  serial_number: string
-}
-
 export class OctopusApi {
   private baseUrl = 'https://api.octopus.energy/v1'
   private electricityMeterPoints: MeterPoint[] = []
@@ -34,15 +29,22 @@ export class OctopusApi {
     CONSUMPTION_GAS: 'consumption_gas'
   }
 
+  private readonly CACHE_TTL = {
+    ACCOUNT_INFO: 24 * 60 * 60 * 1000, // 24 hours
+    METERS: 24 * 60 * 60 * 1000, // 24 hours
+    TARIFF: 12 * 60 * 60 * 1000, // 12 hours
+    CONSUMPTION: 30 * 60 * 1000 // 30 minutes
+  }
+
   constructor(
     private apiKey: string,
     private accountNumber: string
   ) {}
 
-  private async request<T>(path: string, options?: { params?: Record<string, string> }): Promise<T> {
-    const url = new URL(`${this.baseUrl}${path}`)
+  private async request<T>(endpoint: string, options: { params?: Record<string, string> } = {}): Promise<T> {
+    const url = new URL(endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`)
     
-    if (options?.params) {
+    if (options.params) {
       Object.entries(options.params).forEach(([key, value]) => {
         url.searchParams.append(key, value)
       })
@@ -50,12 +52,12 @@ export class OctopusApi {
 
     const response = await fetch(url.toString(), {
       headers: {
-        Authorization: `Basic ${btoa(this.apiKey + ':')}`
-      }
+        Authorization: `Basic ${btoa(`${this.apiKey}:`)}`,
+      },
     })
 
     if (!response.ok) {
-      throw new OctopusApiError(response.status, response.statusText)
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`)
     }
 
     return response.json()
@@ -104,7 +106,8 @@ export class OctopusApi {
         if (point.mprn && meter?.serial_number) {
           this.gasMeterPoint = {
             mprn: point.mprn,
-            serial_number: meter.serial_number
+            serial_number: meter.serial_number,
+            meters: point.meters
           }
         }
       }
@@ -324,24 +327,11 @@ export class OctopusApi {
 
     // Get gas tariff details if available
     const gasPoint = accountData.properties[0]?.gas_meter_points?.[0]
-    if (gasPoint?.agreements?.length) {
-      const currentAgreement = this.findCurrentAgreement(gasPoint.agreements)
-      if (currentAgreement?.tariff_code) {
-        const { productCode } = extractTariffDetails(currentAgreement.tariff_code)
-        
-        tasks.push(
-          // Standing charges
-          this.request<StandingChargeResponse>(
-            `/products/${productCode}/gas-tariffs/${currentAgreement.tariff_code}/standing-charges/`,
-            {
-              params: {
-                period_from: from,
-                period_to: to
-              }
-            }
-          )
-        )
-      }
+    if (gasPoint?.mprn) {
+      // For gas meters, we'll need to get the tariff details from a different endpoint
+      // or handle it differently since gas meter points don't have agreements
+      console.log('Gas meter point found, but tariff details are not available in the API response')
+      // TODO: Implement alternative way to get gas tariff details
     }
 
     const results = await Promise.all(tasks.map(p => p.catch(e => null)))
