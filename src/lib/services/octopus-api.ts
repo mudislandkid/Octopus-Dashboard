@@ -90,27 +90,35 @@ export class OctopusApi {
     const accountData = await this.getAccountInfo()
     
     this.electricityMeterPoints = []
-    for (const property of accountData.properties) {
-      for (const point of property.electricity_meter_points || []) {
-        const meter = point.meters[point.meters.length - 1]
-        if (point.mpan && meter?.serial_number) {
-          this.electricityMeterPoints.push({
-            mpan: point.mpan,
-            serial_number: meter.serial_number,
-            is_export: point.is_export || false
-          })
-        }
+    
+    // Find the current property (where moved_out_at is null)
+    const currentProperty = accountData.properties.find(p => p.moved_out_at === null)
+    if (!currentProperty) {
+      logger.warn('No current property found for account')
+      return
+    }
+
+    // Process electricity meter points for current property only
+    for (const point of currentProperty.electricity_meter_points || []) {
+      const meter = point.meters[point.meters.length - 1]
+      if (point.mpan && meter?.serial_number) {
+        this.electricityMeterPoints.push({
+          mpan: point.mpan,
+          serial_number: meter.serial_number,
+          is_export: point.is_export || false
+        })
       }
-      
-      if (!this.gasMeterPoint && property.gas_meter_points?.[0]) {
-        const point = property.gas_meter_points[0]
-        const meter = point.meters[point.meters.length - 1]
-        if (point.mprn && meter?.serial_number) {
-          this.gasMeterPoint = {
-            mprn: point.mprn,
-            serial_number: meter.serial_number,
-            meters: point.meters
-          }
+    }
+    
+    // Process gas meter point for current property only
+    if (currentProperty.gas_meter_points?.[0]) {
+      const point = currentProperty.gas_meter_points[0]
+      const meter = point.meters[point.meters.length - 1]
+      if (point.mprn && meter?.serial_number) {
+        this.gasMeterPoint = {
+          mprn: point.mprn,
+          serial_number: meter.serial_number,
+          meters: point.meters
         }
       }
     }
@@ -291,8 +299,19 @@ export class OctopusApi {
     const accountData = await this.getAccountInfo()
     const tasks = []
 
-    // Get electricity tariff details
-    const electricityPoint = accountData.properties[0]?.electricity_meter_points?.find(
+    // Find the current property (where moved_out_at is null)
+    const currentProperty = accountData.properties.find(p => p.moved_out_at === null)
+    if (!currentProperty) {
+      logger.warn('No current property found for account')
+      return {
+        electricityRates: null,
+        electricityStandingCharges: null,
+        gasStandingCharges: null
+      }
+    }
+
+    // Get electricity tariff details for current property
+    const electricityPoint = currentProperty.electricity_meter_points?.find(
       (point: { is_export: boolean }) => !point.is_export
     )
 
@@ -327,8 +346,8 @@ export class OctopusApi {
       }
     }
 
-    // Get gas tariff details if available
-    const gasPoint = accountData.properties[0]?.gas_meter_points?.[0]
+    // Get gas tariff details for current property if available
+    const gasPoint = currentProperty.gas_meter_points?.[0]
     if (gasPoint?.mprn) {
       // For gas meters, we'll need to get the tariff details from a different endpoint
       // or handle it differently since gas meter points don't have agreements

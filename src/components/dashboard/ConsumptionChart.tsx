@@ -242,7 +242,6 @@ export function ConsumptionChart({ title, data, previousPeriodData, showPrevious
 
   // Process previous period data if available
   if (previousPeriodData && showPreviousPeriod) {
-    console.group('Previous Period Data Processing')
     // Calculate daily totals for previous period
     const previousDailyTotals = previousPeriodData.reduce((acc, reading) => {
       const dateKey = format(parseISO(reading.interval_start), 'yyyy-MM-dd')
@@ -262,8 +261,6 @@ export function ConsumptionChart({ title, data, previousPeriodData, showPrevious
       return acc
     }, {} as Record<string, { total: number, count: number }>)
 
-    console.log('Previous Daily Totals:', previousDailyTotals)
-
     // Convert to array and sort by date
     const sortedPreviousDays = Object.entries(previousDailyTotals)
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
@@ -273,8 +270,6 @@ export function ConsumptionChart({ title, data, previousPeriodData, showPrevious
         actualDate: format(parseISO(date), 'MMM d'),
         readingCount: data.count
       }))
-
-    console.log('Sorted Previous Days:', sortedPreviousDays)
 
     // Create a map of previous period data for easier lookup
     const previousPeriodMap = new Map(
@@ -389,13 +384,6 @@ export function ConsumptionChart({ title, data, previousPeriodData, showPrevious
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const closest = payload[0].payload as DataPoint;
-      console.log('Tooltip Data:', {
-        label,
-        formattedDate: closest.formattedDate,
-        actualDate: closest.actualDate,
-        value: closest.value,
-        previousValue: closest.previousValue
-      })
       return (
         <div className="rounded-lg border bg-background p-2 shadow-sm">
           <div className="grid gap-2">
